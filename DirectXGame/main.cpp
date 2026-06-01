@@ -3,6 +3,7 @@
 #include <Windows.h>
 #include <d3dcompiler.h>
 using namespace KamataEngine;
+using namespace Microsoft::WRL;
 
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
@@ -135,7 +136,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 	graphicsPipelineStateDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
 
 	// 準備は整った。PSOを生成する
-	ID3D12PipelineState* graphicsPipelineState = nullptr;
+	ComPtr<ID3D12PipelineState> graphicsPipelineState = nullptr;
 
 	hr = dxCommon->GetDevice()->CreateGraphicsPipelineState(&graphicsPipelineStateDesc, IID_PPV_ARGS(&graphicsPipelineState));
 
@@ -187,21 +188,6 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 	// 頂点リソースのマップを解除する
 	vertexResource->Unmap(0, nullptr);
 
-	// 描画開始
-	dxCommon->PreDraw();
-
-	// コマンドを積む
-	commandList->SetGraphicsRootSignature(rootSignature);     // RootSignatureの設定
-	commandList->SetPipelineState(graphicsPipelineState);     // PSOの設定をする
-	commandList->IASetVertexBuffers(0, 1, &vertexBufferView); // VBVの設定する
-	// トポロジの設定
-	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	// 頂点数、インスタンス数、インデックスの開始位置、インデックスのオフセット
-	commandList->DrawInstanced(3, 1, 0, 0);
-
-	// 描画終了
-	dxCommon->PostDraw();
-
 	// メインループ
 	while (true) {
 
@@ -217,6 +203,14 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 		// 描画開始
 		dxCommon->PreDraw();
 
+		commandList->SetGraphicsRootSignature(rootSignature);
+		commandList->SetPipelineState(graphicsPipelineState.Get());
+		commandList->IASetVertexBuffers(0, 1, &vertexBufferView); // VBVの設定する
+		// トポロジの設定
+		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		// 頂点数、インスタンス数、インデックスの開始位置、インデックスのオフセット
+		commandList->DrawInstanced(3, 1, 0, 0);
+
 		// ゲームシーンの描画
 		gameScene->Draw();
 
@@ -229,7 +223,6 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 
 	// 解放処理
 	vertexResource->Release();
-	graphicsPipelineState->Release();
 	signatureBlob->Release();
 	if (errorBlob) {
 		errorBlob->Release();
